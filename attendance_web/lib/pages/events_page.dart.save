@@ -1,0 +1,74 @@
+import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+
+class EventsPage extends StatefulWidget {
+  const EventsPage({super.key});
+
+  @override
+  State<EventsPage> createState() => _EventsPageState();
+}
+
+class _EventsPageState extends State<EventsPage> {
+  final api = ApiService();
+  bool loading = true;
+  List<dynamic> events = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadEvents();
+  }
+
+  Future<void> loadEvents() async {
+    setState(() => loading = true);
+    events = await api.getEvents();
+    setState(() => loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Events'),
+        actions: [
+          IconButton(
+            onPressed: loadEvents,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),actions: [
+  IconButton(
+    onPressed: () async {
+      await showCreateEventDialog(context);
+      await loadEvents();
+    },
+    icon: const Icon(Icons.add),
+  ),
+  IconButton(
+    onPressed: loadEvents,
+    icon: const Icon(Icons.refresh),
+  ),
+],
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: events.length,
+              itemBuilder: (context, index) {
+                final event = events[index];
+
+                return Card(
+                  child: ListTile(
+                    title: Text(event['title'] ?? ''),
+                    subtitle: Text(
+                      '${event['venue'] ?? '-'}\n${event['event_date'] ?? '-'}',
+                    ),
+                    isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
