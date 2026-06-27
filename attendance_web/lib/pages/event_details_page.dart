@@ -65,12 +65,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     if (index >= row.length) return '';
 
     final cell = row[index];
-    if (cell == null) return '';
+    if (cell == null || cell.value == null) return '';
 
-    final value = cell.value;
-    if (value == null) return '';
-
-    final raw = value.toString();
+    final raw = cell.value.toString().trim();
 
     final match = RegExp(r'value:\s*([^,)]+)').firstMatch(raw);
     if (match != null) {
@@ -82,6 +79,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         .replaceAll('DoubleCellValue(', '')
         .replaceAll('TextCellValue(', '')
         .replaceAll(')', '')
+        .replaceAll('"', '')
         .trim();
   }
 
@@ -146,9 +144,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Missing required columns: Seat No, Student No, Full Name',
-          ),
+          content: Text('Missing columns: Seat No, Student No, Full Name'),
         ),
       );
       return;
@@ -179,6 +175,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       });
     }
 
+    if (imported.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No valid students found.')));
+      return;
+    }
+
     final response = await api.importAttendees(widget.eventId, imported);
 
     if (!mounted) return;
@@ -202,7 +206,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Add Student'),
+          title: const Text('Add / Update Student'),
           content: SizedBox(
             width: 420,
             child: SingleChildScrollView(
@@ -361,7 +365,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                       ElevatedButton.icon(
                         onPressed: addStudentDialog,
                         icon: const Icon(Icons.person_add),
-                        label: const Text('Add Student'),
+                        label: const Text('Add / Update Student'),
                       ),
                       const SizedBox(width: 10),
                       ElevatedButton.icon(
@@ -419,7 +423,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
                               return Card(
                                 child: ListTile(
                                   leading: CircleAvatar(
-                                    child: Text('${a['seat_no'] ?? index + 1}'),
+                                    child: Text('${a['seat_no'] ?? '-'}'),
                                   ),
                                   title: Text(a['full_name'] ?? ''),
                                   subtitle: Text(
