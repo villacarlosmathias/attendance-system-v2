@@ -27,16 +27,13 @@ class _EventsPageState extends State<EventsPage> {
     try {
       events = await api.getEvents();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Load error: $e')));
     }
 
-    if (mounted) {
-      setState(() => loading = false);
-    }
+    if (mounted) setState(() => loading = false);
   }
 
   Future<void> createEventDialog() async {
@@ -46,62 +43,92 @@ class _EventsPageState extends State<EventsPage> {
     final startController = TextEditingController();
     final endController = TextEditingController();
 
+    bool saving = false;
+
     final created = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Create Event'),
-        content: SizedBox(
-          width: 420,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Event Title'),
-              ),
-              TextField(
-                controller: venueController,
-                decoration: const InputDecoration(labelText: 'Venue'),
-              ),
-              TextField(
-                controller: dateController,
-                decoration: const InputDecoration(labelText: 'Date YYYY-MM-DD'),
-              ),
-              TextField(
-                controller: startController,
-                decoration: const InputDecoration(
-                  labelText: 'Start Time HH:MM',
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Create Event'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Event Title',
+                      ),
+                    ),
+                    TextField(
+                      controller: venueController,
+                      decoration: const InputDecoration(labelText: 'Venue'),
+                    ),
+                    TextField(
+                      controller: dateController,
+                      decoration: const InputDecoration(
+                        labelText: 'Date YYYY-MM-DD',
+                      ),
+                    ),
+                    TextField(
+                      controller: startController,
+                      decoration: const InputDecoration(
+                        labelText: 'Start Time HH:MM',
+                      ),
+                    ),
+                    TextField(
+                      controller: endController,
+                      decoration: const InputDecoration(
+                        labelText: 'End Time HH:MM',
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              TextField(
-                controller: endController,
-                decoration: const InputDecoration(labelText: 'End Time HH:MM'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await api.createEvent({
-                'title': titleController.text.trim(),
-                'venue': venueController.text.trim(),
-                'event_date': dateController.text.trim(),
-                'start_time': startController.text.trim(),
-                'end_time': endController.text.trim(),
-              });
+              actions: [
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setDialogState(() => saving = true);
 
-              if (!mounted) return;
-              Navigator.pop(context, true);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+                          try {
+                            await api.createEvent({
+                              'title': titleController.text.trim(),
+                              'venue': venueController.text.trim(),
+                              'event_date': dateController.text.trim(),
+                              'start_time': startController.text.trim(),
+                              'end_time': endController.text.trim(),
+                            });
+
+                            if (!dialogContext.mounted) return;
+                            Navigator.pop(dialogContext, true);
+                          } catch (e) {
+                            setDialogState(() => saving = false);
+
+                            if (!dialogContext.mounted) return;
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              SnackBar(content: Text('Save failed: $e')),
+                            );
+                          }
+                        },
+                  child: Text(saving ? 'Saving...' : 'Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
     if (created == true) {
@@ -132,20 +159,8 @@ class _EventsPageState extends State<EventsPage> {
                 final event = events[index];
 
                 return Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.all(18),
-                    title: Text(
-                      event['title'] ?? '',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
+                    title: Text(event['title'] ?? ''),
                     subtitle: Text(
                       '${event['venue'] ?? '-'}\n'
                       '${event['event_date'] ?? '-'} • ${event['start_time'] ?? '-'} - ${event['end_time'] ?? '-'}',
