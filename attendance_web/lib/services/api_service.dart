@@ -38,6 +38,17 @@ class ApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<void> deleteEvent(int id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/events/$id'),
+      headers: headers,
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(response.body);
+    }
+  }
+
   Future<List<dynamic>> getAttendees(int eventId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/events/$eventId/attendees'),

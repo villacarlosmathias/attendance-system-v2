@@ -36,6 +36,51 @@ class _EventsPageState extends State<EventsPage> {
     if (mounted) setState(() => loading = false);
   }
 
+  Future<void> deleteEvent(dynamic event) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Event'),
+          content: Text(
+            'Are you sure you want to delete "${event['title'] ?? 'this event'}"?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await api.deleteEvent(event['id']);
+      await loadEvents();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Event deleted successfully.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+    }
+  }
+
   Future<void> createEventDialog() async {
     final titleController = TextEditingController();
     final venueController = TextEditingController();
@@ -166,11 +211,22 @@ class _EventsPageState extends State<EventsPage> {
                       '${event['event_date'] ?? '-'} • ${event['start_time'] ?? '-'} - ${event['end_time'] ?? '-'}',
                     ),
                     isThreeLine: true,
-                    trailing: ElevatedButton(
-                      onPressed: () {
-                        widget.onOpenEvent?.call(event['id']);
-                      },
-                      child: const Text('Open'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            widget.onOpenEvent?.call(event['id']);
+                          },
+                          child: const Text('Open'),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: 'Delete Event',
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => deleteEvent(event),
+                        ),
+                      ],
                     ),
                   ),
                 );
