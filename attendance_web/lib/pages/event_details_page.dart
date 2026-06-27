@@ -166,7 +166,28 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
 
       String cell(int index) {
         if (index >= row.length) return '';
-        return row[index]?.value?.toString().trim() ?? '';
+        final value = row[index]?.value;
+        if (value == null) return '';
+
+        final text = value.toString();
+
+        if (text.contains('IntCellValue')) {
+          return text.replaceAll(RegExp(r'[^0-9]'), '');
+        }
+
+        if (text.contains('DoubleCellValue')) {
+          return text.replaceAll(RegExp(r'[^0-9.]'), '').split('.').first;
+        }
+
+        if (text.contains('TextCellValue')) {
+          return text
+              .replaceAll('TextCellValue(', '')
+              .replaceAll(')', '')
+              .replaceAll('value:', '')
+              .trim();
+        }
+
+        return text.trim();
       }
 
       final seatNo = cell(0);
