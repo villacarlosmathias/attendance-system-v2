@@ -33,7 +33,9 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
   @override
   void didUpdateWidget(covariant EventDetailsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.eventId != widget.eventId) loadData();
+    if (oldWidget.eventId != widget.eventId) {
+      loadData();
+    }
   }
 
   Future<void> loadData() async {
@@ -59,78 +61,34 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     }
   }
 
-  Future<void> addStudentDialog() async {
-    final seatController = TextEditingController();
-    final studentNoController = TextEditingController();
-    final nameController = TextEditingController();
-    final collegeController = TextEditingController();
-    final programController = TextEditingController();
-    final sportController = TextEditingController();
+  String excelCell(List<dynamic> row, int index) {
+    if (index >= row.length) return '';
 
-    final added = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Add Student'),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: seatController,
-                  decoration: const InputDecoration(labelText: 'Seat No.'),
-                ),
-                TextField(
-                  controller: studentNoController,
-                  decoration: const InputDecoration(labelText: 'Student No.'),
-                ),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Full Name'),
-                ),
-                TextField(
-                  controller: collegeController,
-                  decoration: const InputDecoration(labelText: 'College'),
-                ),
-                TextField(
-                  controller: programController,
-                  decoration: const InputDecoration(labelText: 'Program'),
-                ),
-                TextField(
-                  controller: sportController,
-                  decoration: const InputDecoration(labelText: 'Sport'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await api.addAttendee(widget.eventId, {
-                'seat_no': int.tryParse(seatController.text.trim()),
-                'student_no': studentNoController.text.trim(),
-                'full_name': nameController.text.trim(),
-                'college_school': collegeController.text.trim(),
-                'program': programController.text.trim(),
-                'college': collegeController.text.trim(),
-                'sport': sportController.text.trim(),
-              });
+    final cell = row[index];
+    if (cell == null) return '';
 
-              if (!dialogContext.mounted) return;
-              Navigator.pop(dialogContext, true);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
+    final value = cell.value;
+    if (value == null) return '';
 
-    if (added == true) await loadData();
+    final raw = value.toString();
+
+    final match = RegExp(r'value:\s*([^,)]+)').firstMatch(raw);
+    if (match != null) {
+      return match.group(1)!.trim();
+    }
+
+    return raw
+        .replaceAll('IntCellValue(', '')
+        .replaceAll('DoubleCellValue(', '')
+        .replaceAll('TextCellValue(', '')
+        .replaceAll(')', '')
+        .trim();
+  }
+
+  int? parseSeatNo(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleaned.isEmpty) return null;
+    return int.tryParse(cleaned);
   }
 
   Future<void> importExcel() async {
@@ -164,43 +122,17 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     for (int i = 1; i < sheet.rows.length; i++) {
       final row = sheet.rows[i];
 
-      String cell(int index) {
-        if (index >= row.length) return '';
-        final value = row[index]?.value;
-        if (value == null) return '';
-
-        final text = value.toString();
-
-        if (text.contains('IntCellValue')) {
-          return text.replaceAll(RegExp(r'[^0-9]'), '');
-        }
-
-        if (text.contains('DoubleCellValue')) {
-          return text.replaceAll(RegExp(r'[^0-9.]'), '').split('.').first;
-        }
-
-        if (text.contains('TextCellValue')) {
-          return text
-              .replaceAll('TextCellValue(', '')
-              .replaceAll(')', '')
-              .replaceAll('value:', '')
-              .trim();
-        }
-
-        return text.trim();
-      }
-
-      final seatNo = cell(0);
-      final studentNo = cell(1);
-      final fullName = cell(2);
-      final college = cell(3);
-      final program = cell(4);
-      final sport = cell(5);
+      final seatNo = excelCell(row, 0);
+      final studentNo = excelCell(row, 1);
+      final fullName = excelCell(row, 2);
+      final college = excelCell(row, 3);
+      final program = excelCell(row, 4);
+      final sport = excelCell(row, 5);
 
       if (studentNo.isEmpty || fullName.isEmpty) continue;
 
       imported.add({
-        'seat_no': int.tryParse(seatNo),
+        'seat_no': parseSeatNo(seatNo),
         'student_no': studentNo,
         'full_name': fullName,
         'college_school': college,
@@ -208,6 +140,14 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         'college': college,
         'sport': sport,
       });
+    }
+
+    if (imported.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No valid students found in Excel file.')),
+      );
+      return;
     }
 
     final response = await api.importAttendees(widget.eventId, imported);
@@ -219,6 +159,84 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     );
 
     await loadData();
+  }
+
+  Future<void> addStudentDialog() async {
+    final seatController = TextEditingController();
+    final studentNoController = TextEditingController();
+    final nameController = TextEditingController();
+    final collegeController = TextEditingController();
+    final programController = TextEditingController();
+    final sportController = TextEditingController();
+
+    final added = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Add Student'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  TextField(
+                    controller: seatController,
+                    decoration: const InputDecoration(labelText: 'Seat No.'),
+                  ),
+                  TextField(
+                    controller: studentNoController,
+                    decoration: const InputDecoration(labelText: 'Student No.'),
+                  ),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Full Name'),
+                  ),
+                  TextField(
+                    controller: collegeController,
+                    decoration: const InputDecoration(labelText: 'College'),
+                  ),
+                  TextField(
+                    controller: programController,
+                    decoration: const InputDecoration(labelText: 'Program'),
+                  ),
+                  TextField(
+                    controller: sportController,
+                    decoration: const InputDecoration(labelText: 'Sport'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await api.addAttendee(widget.eventId, {
+                  'seat_no': parseSeatNo(seatController.text.trim()),
+                  'student_no': studentNoController.text.trim(),
+                  'full_name': nameController.text.trim(),
+                  'college_school': collegeController.text.trim(),
+                  'program': programController.text.trim(),
+                  'college': collegeController.text.trim(),
+                  'sport': sportController.text.trim(),
+                });
+
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (added == true) {
+      await loadData();
+    }
   }
 
   String makeCsv(List<List<dynamic>> rows) {
