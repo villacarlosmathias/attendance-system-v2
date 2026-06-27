@@ -34,7 +34,7 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   int selectedIndex = 0;
-  int selectedEventId = 1;
+  int? selectedEventId;
 
   void openEvent(int id) {
     setState(() {
@@ -48,7 +48,14 @@ class _AdminShellState extends State<AdminShell> {
     final pages = [
       DashboardPage(onOpenEvent: openEvent),
       EventsPage(onOpenEvent: openEvent),
-      EventDetailsPage(eventId: selectedEventId),
+      selectedEventId == null
+          ? const Center(
+              child: Text(
+                'Select an event first.',
+                style: TextStyle(fontSize: 22),
+              ),
+            )
+          : EventDetailsPage(eventId: selectedEventId!),
       const StudentRegistrationPage(),
     ];
 
