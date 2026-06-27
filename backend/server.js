@@ -19,7 +19,6 @@ app.get("/test-db", async (req, res) => {
     const result = await pool.query("SELECT NOW()");
     res.json({ success: true, time: result.rows[0].now });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -66,7 +65,6 @@ app.post("/setup-db", async (req, res) => {
 
     res.json({ success: true, message: "Database tables created" });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -76,7 +74,6 @@ app.get("/events", async (req, res) => {
     const result = await pool.query("SELECT * FROM events ORDER BY id DESC");
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -93,7 +90,6 @@ app.get("/events/:id", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -111,7 +107,21 @@ app.post("/events", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.delete("/events/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await pool.query("DELETE FROM events WHERE id = $1", [id]);
+
+    res.json({
+      success: true,
+      message: "Event deleted successfully.",
+    });
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
@@ -129,7 +139,6 @@ app.get("/events/:eventId/attendees", async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -152,6 +161,14 @@ app.post("/events/:eventId/attendees", async (req, res) => {
       `INSERT INTO event_attendees
        (event_id, seat_no, student_no, full_name, college_school, program, college, sport)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (event_id, student_no)
+       DO UPDATE SET
+         seat_no = EXCLUDED.seat_no,
+         full_name = EXCLUDED.full_name,
+         college_school = EXCLUDED.college_school,
+         program = EXCLUDED.program,
+         college = EXCLUDED.college,
+         sport = EXCLUDED.sport
        RETURNING *`,
       [
         eventId,
@@ -167,7 +184,6 @@ app.post("/events/:eventId/attendees", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -236,7 +252,6 @@ app.post("/events/:eventId/import-attendees", async (req, res) => {
     res.json({ success: true, imported, skipped });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error(error);
     res.status(500).json({ message: error.message });
   } finally {
     client.release();
@@ -295,7 +310,6 @@ app.post("/events/:eventId/register", async (req, res) => {
       ...updated.rows[0],
     });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -323,7 +337,6 @@ app.get("/events/:eventId/report", async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
