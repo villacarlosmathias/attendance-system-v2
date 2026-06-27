@@ -115,19 +115,56 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     final excel = xls.Excel.decodeBytes(bytes);
     final sheet = excel.tables[excel.tables.keys.first];
 
-    if (sheet == null) return;
+    if (sheet == null || sheet.rows.length < 2) return;
+
+    final headerRow = sheet.rows[0];
+
+    String header(int index) {
+      return excelCell(headerRow, index)
+          .toLowerCase()
+          .replaceAll(' ', '')
+          .replaceAll('.', '')
+          .replaceAll('_', '');
+    }
+
+    int findColumn(List<String> names) {
+      for (int i = 0; i < headerRow.length; i++) {
+        final h = header(i);
+        if (names.contains(h)) return i;
+      }
+      return -1;
+    }
+
+    final seatCol = findColumn(['seatno', 'seatnumber', 'seat']);
+    final studentCol = findColumn(['studentno', 'studentnumber']);
+    final nameCol = findColumn(['fullname', 'name']);
+    final collegeCol = findColumn(['college', 'collegeschool']);
+    final programCol = findColumn(['program']);
+    final sportCol = findColumn(['sport']);
+
+    if (seatCol == -1 || studentCol == -1 || nameCol == -1) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Missing required columns: Seat No, Student No, Full Name',
+          ),
+        ),
+      );
+      return;
+    }
 
     final imported = <Map<String, dynamic>>[];
 
     for (int i = 1; i < sheet.rows.length; i++) {
       final row = sheet.rows[i];
 
-      final seatNo = excelCell(row, 0);
-      final studentNo = excelCell(row, 1);
-      final fullName = excelCell(row, 2);
-      final college = excelCell(row, 3);
-      final program = excelCell(row, 4);
-      final sport = excelCell(row, 5);
+      final seatNo = excelCell(row, seatCol);
+      final studentNo = excelCell(row, studentCol);
+      final fullName = excelCell(row, nameCol);
+      final college = collegeCol == -1 ? '' : excelCell(row, collegeCol);
+      final program = programCol == -1 ? '' : excelCell(row, programCol);
+      final sport = sportCol == -1 ? '' : excelCell(row, sportCol);
 
       if (studentNo.isEmpty || fullName.isEmpty) continue;
 
@@ -140,14 +177,6 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         'college': college,
         'sport': sport,
       });
-    }
-
-    if (imported.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No valid students found in Excel file.')),
-      );
-      return;
     }
 
     final response = await api.importAttendees(widget.eventId, imported);
