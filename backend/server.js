@@ -346,3 +346,7 @@ app.get("/events/:eventId/report", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
