@@ -70,9 +70,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     final raw = cell.value.toString().trim();
 
     final match = RegExp(r'value:\s*([^,)]+)').firstMatch(raw);
-    if (match != null) {
-      return match.group(1)!.trim();
-    }
+    if (match != null) return match.group(1)!.trim();
 
     return raw
         .replaceAll('IntCellValue(', '')
@@ -87,6 +85,29 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
     final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
     if (cleaned.isEmpty) return null;
     return int.tryParse(cleaned);
+  }
+
+  String formatPhilippineTimeForReport(dynamic value) {
+    if (value == null || value.toString().isEmpty) return '';
+
+    try {
+      final date = DateTime.parse(
+        value.toString(),
+      ).toUtc().add(const Duration(hours: 8));
+
+      final hour = date.hour > 12
+          ? date.hour - 12
+          : date.hour == 0
+          ? 12
+          : date.hour;
+
+      final minute = date.minute.toString().padLeft(2, '0');
+      final ampm = date.hour >= 12 ? 'PM' : 'AM';
+
+      return '${date.month}/${date.day}/${date.year} $hour:$minute $ampm';
+    } catch (_) {
+      return value.toString();
+    }
   }
 
   Future<void> importExcel() async {
@@ -310,7 +331,7 @@ class _EventDetailsPageState extends State<EventDetailsPage> {
         item['program'] ?? '',
         item['sport'] ?? '',
         item['status'] ?? '',
-        item['checked_in_at'] ?? '',
+        formatPhilippineTimeForReport(item['checked_in_at']),
       ]);
     }
 

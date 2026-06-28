@@ -328,7 +328,13 @@ app.get("/events/:eventId/report", async (req, res) => {
         college,
         sport,
         status,
-        checked_in_at
+        CASE
+          WHEN checked_in_at IS NULL THEN ''
+          ELSE TO_CHAR(
+            checked_in_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila',
+            'MM/DD/YYYY HH12:MI AM'
+          )
+        END AS checked_in_at
        FROM event_attendees
        WHERE event_id = $1
        ORDER BY seat_no ASC, full_name ASC`,
@@ -339,8 +345,4 @@ app.get("/events/:eventId/report", async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });
