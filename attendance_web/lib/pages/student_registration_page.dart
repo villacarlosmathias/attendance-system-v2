@@ -27,6 +27,29 @@ class _StudentRegistrationPageState extends State<StudentRegistrationPage> {
     );
   }
 
+  String formatPhilippineTime(dynamic value) {
+    if (value == null) return '-';
+
+    try {
+      final date = DateTime.parse(
+        value.toString(),
+      ).toUtc().add(const Duration(hours: 8));
+
+      final hour = date.hour > 12
+          ? date.hour - 12
+          : date.hour == 0
+          ? 12
+          : date.hour;
+
+      final minute = date.minute.toString().padLeft(2, '0');
+      final ampm = date.hour >= 12 ? 'PM' : 'AM';
+
+      return '${date.month}/${date.day}/${date.year} $hour:$minute $ampm';
+    } catch (_) {
+      return value.toString();
+    }
+  }
+
   Future<void> register() async {
     final eventId = int.tryParse(eventIdController.text.trim());
     final studentNo = studentNoController.text.trim();
@@ -156,6 +179,7 @@ class _StudentRegistrationPageState extends State<StudentRegistrationPage> {
   Widget _successCard() {
     final data = result!;
     final seatNo = data['seat_no'];
+    final checkedInAt = data['checked_in_at'];
 
     return Card(
       elevation: 0,
@@ -188,6 +212,15 @@ class _StudentRegistrationPageState extends State<StudentRegistrationPage> {
               data['full_name'] ?? '',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Checked in: ${formatPhilippineTime(checkedInAt)}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF475569),
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 24),
             Container(
